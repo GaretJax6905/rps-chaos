@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RPS Chaos</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔮</text></svg>">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <canvas id="confetti" aria-hidden="true"></canvas>
+    <script id="config" type="application/json">{{ config|tojson }}</script>
+
+    <main id="app">
+      <!-- Start screen -->
+      <section id="start" class="screen" aria-labelledby="start-title">
+        <p class="eyebrow">Five bosses. One of them reads your mind.</p>
+        <h1 id="start-title" class="logo">RPS<span>Chaos</span></h1>
+        <p class="lede">Pick your ruleset, then fight your way up the ladder.</p>
+
+        <div class="modes" role="group" aria-label="Choose a game mode">
+          <button type="button" class="mode-card" data-mode="classic">
+            <span class="mode-key" aria-hidden="true">1</span>
+            <span class="mode-icons" aria-hidden="true">✊ ✋ ✌️</span>
+            <span class="mode-name">Rock Paper Scissors</span>
+            <span class="mode-desc">The original. Three moves, no mercy.</span>
+          </button>
+          <button type="button" class="mode-card spock" data-mode="spock">
+            <span class="mode-key" aria-hidden="true">2</span>
+            <span class="mode-icons" aria-hidden="true">✊ ✋ ✌️ 🦎 🖖</span>
+            <span class="mode-name">Rock Paper Scissors Lizard Spock</span>
+            <span class="mode-desc">Five moves. Every move beats two and loses to two.</span>
+          </button>
+        </div>
+
+        <ol class="ladder-preview" aria-label="Boss ladder"></ol>
+      </section>
+
+      <!-- Battle screen -->
+      <section id="battle" class="screen" hidden aria-label="Battle">
+        <div class="topbar">
+          <button type="button" class="ghost" id="quit">← Modes</button>
+          <ol class="ladder" aria-label="Boss progress"></ol>
+          <button type="button" class="ghost" id="mute" aria-pressed="false">🔊 Sound</button>
+        </div>
+
+        <div class="arena" id="arena">
+          <div class="fighter you">
+            <p class="fighter-label">You</p>
+            <div class="hand" id="you-hand" aria-hidden="true">✊</div>
+            <p class="pick" id="you-pick">&nbsp;</p>
+            <div class="hearts" id="you-hp" aria-label="Your health"></div>
+          </div>
+
+          <div class="vs" aria-hidden="true">VS</div>
+
+          <div class="fighter boss">
+            <p class="fighter-label" id="boss-name">Boss</p>
+            <div class="hand" id="boss-hand" aria-hidden="true">✊</div>
+            <p class="pick" id="boss-pick">&nbsp;</p>
+            <div class="hpbar" id="boss-hpbar" role="meter" aria-label="Boss health" aria-valuemin="0">
+              <span id="boss-hpfill"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="boss-card">
+          <span class="boss-avatar" id="boss-avatar" aria-hidden="true">🪨</span>
+          <div>
+            <p class="boss-title" id="boss-title"></p>
+            <p class="speech" id="boss-speech"></p>
+          </div>
+        </div>
+
+        <div class="banner" id="banner" role="status" aria-live="polite">
+          <h2 id="banner-title">Make your move</h2>
+          <p id="banner-detail">Click a move or press its key.</p>
+        </div>
+
+        <div class="moves" id="moves" role="group" aria-label="Choose your move"></div>
+
+        <div class="lower">
+          <aside class="brain" aria-labelledby="brain-title">
+            <h3 id="brain-title">🔮 ORACLE's scouting report</h3>
+            <p class="insight" id="brain-insight"></p>
+            <div class="meter" aria-hidden="true"><span id="brain-meter"></span></div>
+            <p class="predict" id="brain-predict"></p>
+          </aside>
+          <aside class="stats" aria-label="Stats">
+            <div><b id="stat-wins">0</b><span>Wins</span></div>
+            <div><b id="stat-losses">0</b><span>Losses</span></div>
+            <div><b id="stat-ties">0</b><span>Ties</span></div>
+            <div><b id="stat-streak">0</b><span>Streak</span></div>
+            <div><b id="stat-best">0</b><span>Best streak</span></div>
+          </aside>
+        </div>
+
+        <details class="rules">
+          <summary>Rules for this mode</summary>
+          <ul id="rules-list"></ul>
+        </details>
+      </section>
+
+      <!-- Overlay for boss defeated / game over / champion -->
+      <div class="overlay" id="overlay" hidden>
+        <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
+          <div class="overlay-emoji" id="overlay-emoji" aria-hidden="true"></div>
+          <h2 id="overlay-title"></h2>
+          <p id="overlay-text"></p>
+          <div class="overlay-actions" id="overlay-actions"></div>
+        </div>
+      </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
