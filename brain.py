@@ -116,3 +116,78 @@ def best_counter(mode, scores):
         )
 
     return max(moves, key=lambda m: (expected(m), -moves.index(m)))
+
+
+# ---------------------------------------------------------------------------
+# Phase 2 ORACLE: meta-strategy ("thinking ahead") on top of simple predictors.
+# ---------------------------------------------------------------------------
+
+DECAY = 0.85
+LEVEL_WORDS = (
+    "countering it directly",
+    "assuming you'd see that coming",
+    "assuming you'd think one step further",
+)
+
+
+def _beat(mode, move):
+    """The first move (in move order) that beats ``move``."""
+    return rules.counters(mode, move)[0]
+
+
+def _base_guesses(mode, history):
+    """Each simple predictor's guess for the player's next move (or None)."""
+    if not history:
+        return {}
+    last = history[-1]
+    favorite = Counter(r["player"] for r in history).most_common(1)[0][0]
+    return {
+        "your patterns": predict(mode, history)["prediction"],
+        "you repeating yourself": last["player"],
+        "you countering my last move": _beat(mode, last["computer"]),
+        "your favorite move": favorite,
+    }
+
+
+def _strategies(mode, history):
+    """Map (predictor, level) -> ORACLE's move, for every usable predictor."""
+    plays = {}
+    for name, guess in _base_guesses(mode, history).items():
+        if guess is None:
+            continue
+        move = _beat(mode, guess)
+        for level in range(len(LEVEL_WORDS)):
+            plays[(name, level)] = move
+            # The player anticipates ``move`` and plays its counter;
+            # the next level counters that instead.
+            move = _beat(mode, _beat(mode, move))
+    return plays
+
+
+def meta_choose(mode, history, rng):
+    """Return (move, thought): the strategy that would have scored best so far.
+
+    Every (predictor, level) pair is replayed over the history with decaying
+    scores (+1 would have won, -1 would have lost). If nothing is working,
+    ORACLE falls back to a random move so it cannot be exploited.
+    """
+    scores = Counter()
+    for t in range(MIN_ROUNDS, len(history)):
+        actual = history[t]["player"]
+        for key in scores:
+            scores[key] *= DECAY
+        for key, move in _strategies(mode, history[:t]).items():
+            result = rules.determine_winner(mode, move, actual)
+            scores[key] += {"win": 1, "lose": -1, "tie": 0}[result]
+
+    plays = _strategies(mode, history)
+    ranked = [key for key, _ in scores.most_common() if key in plays]
+    if not ranked or scores[ranked[0]] <= 0:
+        return rng.choice(rules.moves_for(mode)), (
+            "None of my strategies are working on you… going on instinct."
+        )
+    name, level = ranked[0]
+    return plays[(name, level)], (
+        f"Full power. Predicting {name}, {LEVEL_WORDS[level]} "
+        f"(strategy score {scores[(name, level)]:.1f})."
+    )

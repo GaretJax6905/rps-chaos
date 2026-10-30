@@ -2,9 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>RPS Chaos</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔮</text></svg>">
+    <meta name="description" content="Rock Paper Scissors (+ Lizard Spock): boss battles, a mind-reading final boss, and online 2-player.">
+    <meta name="theme-color" content="#0d0b1f">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="{{ url_for('static', filename='icon-192.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bungee&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -12,39 +18,73 @@
   </head>
   <body>
     <canvas id="confetti" aria-hidden="true"></canvas>
+    <div id="slam" class="slam" aria-hidden="true"></div>
     <script id="config" type="application/json">{{ config|tojson }}</script>
 
     <main id="app">
-      <!-- Start screen -->
-      <section id="start" class="screen" aria-labelledby="start-title">
+      <!-- ================= Menu ================= -->
+      <section id="menu" class="screen" aria-labelledby="menu-title">
         <p class="eyebrow">Five bosses. One of them reads your mind.</p>
-        <h1 id="start-title" class="logo">RPS<span>Chaos</span></h1>
-        <p class="lede">Pick your ruleset, then fight your way up the ladder.</p>
+        <h1 id="menu-title" class="logo">RPS<span>Chaos</span></h1>
 
-        <div class="modes" role="group" aria-label="Choose a game mode">
-          <button type="button" class="mode-card" data-mode="classic">
+        <fieldset class="ruleset">
+          <legend>Rules</legend>
+          <label><input type="radio" name="ruleset" value="classic" checked><span>✊ ✋ ✌️ Classic</span></label>
+          <label><input type="radio" name="ruleset" value="spock"><span>+ 🦎 🖖 Lizard Spock</span></label>
+        </fieldset>
+
+        <div class="modes" role="group" aria-label="Choose how to play">
+          <button type="button" class="mode-card" data-play="ladder">
             <span class="mode-key" aria-hidden="true">1</span>
-            <span class="mode-icons" aria-hidden="true">✊ ✋ ✌️</span>
-            <span class="mode-name">Rock Paper Scissors</span>
-            <span class="mode-desc">The original. Three moves, no mercy.</span>
+            <span class="mode-icons" aria-hidden="true">🏆</span>
+            <span class="mode-name">Boss Ladder</span>
+            <span class="mode-desc">You vs the CPU. Five bosses, each with a second phase.</span>
           </button>
-          <button type="button" class="mode-card spock" data-mode="spock">
+          <button type="button" class="mode-card" data-play="local">
             <span class="mode-key" aria-hidden="true">2</span>
-            <span class="mode-icons" aria-hidden="true">✊ ✋ ✌️ 🦎 🖖</span>
-            <span class="mode-name">Rock Paper Scissors Lizard Spock</span>
-            <span class="mode-desc">Five moves. Every move beats two and loses to two.</span>
+            <span class="mode-icons" aria-hidden="true">🤝</span>
+            <span class="mode-name">Same Device</span>
+            <span class="mode-desc">Two players, one screen. Pass it back and forth.</span>
           </button>
+          <button type="button" class="mode-card" data-play="online">
+            <span class="mode-key" aria-hidden="true">3</span>
+            <span class="mode-icons" aria-hidden="true">🌐</span>
+            <span class="mode-name">Online</span>
+            <span class="mode-desc">Send a link to a friend anywhere and play live.</span>
+          </button>
+        </div>
+
+        <div class="options">
+          <label class="switch"><input type="checkbox" id="opt-clock"><span>⏱ Shot clock <small>(Boss Ladder: stall and the boss heals)</small></span></label>
+          <label class="switch"><input type="checkbox" id="opt-music"><span>🎵 Music</span></label>
+          <label class="switch"><input type="checkbox" id="opt-sound"><span>🔊 Sound effects</span></label>
         </div>
 
         <ol class="ladder-preview" aria-label="Boss ladder"></ol>
       </section>
 
-      <!-- Battle screen -->
+      <!-- ================= Setup (local / online) ================= -->
+      <section id="setup" class="screen panel-screen" hidden aria-labelledby="setup-title">
+        <button type="button" class="ghost back" data-back>← Menu</button>
+        <h2 id="setup-title" class="screen-title"></h2>
+        <p id="setup-lede" class="lede"></p>
+        <form id="setup-form" class="setup-form">
+          <label class="field" id="field-name1"><span id="label-name1">Your name</span><input id="name1" maxlength="16" autocomplete="nickname" placeholder="Player 1"></label>
+          <label class="field" id="field-name2"><span>Player 2 name</span><input id="name2" maxlength="16" placeholder="Player 2"></label>
+          <label class="field" id="field-target"><span>Match length</span>
+            <select id="target"></select>
+          </label>
+          <button type="submit" class="primary big" id="setup-go"></button>
+          <p class="form-error" id="setup-error" role="alert"></p>
+        </form>
+      </section>
+
+      <!-- ================= Boss Ladder battle ================= -->
       <section id="battle" class="screen" hidden aria-label="Battle">
         <div class="topbar">
-          <button type="button" class="ghost" id="quit">← Modes</button>
+          <button type="button" class="ghost" data-back>← Menu</button>
           <ol class="ladder" aria-label="Boss progress"></ol>
-          <button type="button" class="ghost" id="mute" aria-pressed="false">🔊 Sound</button>
+          <button type="button" class="ghost" data-toggle-music>🎵</button>
         </div>
 
         <div class="arena" id="arena">
@@ -54,9 +94,7 @@
             <p class="pick" id="you-pick">&nbsp;</p>
             <div class="hearts" id="you-hp" aria-label="Your health"></div>
           </div>
-
           <div class="vs" aria-hidden="true">VS</div>
-
           <div class="fighter boss">
             <p class="fighter-label" id="boss-name">Boss</p>
             <div class="hand" id="boss-hand" aria-hidden="true">✊</div>
@@ -67,12 +105,17 @@
           </div>
         </div>
 
-        <div class="boss-card">
+        <div class="boss-card" id="boss-card">
           <span class="boss-avatar" id="boss-avatar" aria-hidden="true">🪨</span>
           <div>
             <p class="boss-title" id="boss-title"></p>
             <p class="speech" id="boss-speech"></p>
           </div>
+        </div>
+
+        <div class="shotclock" id="shotclock" hidden>
+          <div class="shotclock-bar"><span id="shotclock-fill"></span></div>
+          <p id="shotclock-label">⏱ 5.0s</p>
         </div>
 
         <div class="banner" id="banner" role="status" aria-live="polite">
@@ -100,11 +143,64 @@
 
         <details class="rules">
           <summary>Rules for this mode</summary>
-          <ul id="rules-list"></ul>
+          <ul class="rules-list"></ul>
         </details>
       </section>
 
-      <!-- Overlay for boss defeated / game over / champion -->
+      <!-- ================= Two-player duel (local + online) ================= -->
+      <section id="duel" class="screen" hidden aria-label="Two-player match">
+        <div class="topbar">
+          <button type="button" class="ghost" data-back>← Menu</button>
+          <p class="duel-target" id="duel-target"></p>
+          <button type="button" class="ghost" data-toggle-music>🎵</button>
+        </div>
+
+        <div class="share" id="share" hidden>
+          <p class="share-title">Send this link to your opponent</p>
+          <div class="share-row">
+            <input id="share-link" readonly aria-label="Room link">
+            <button type="button" class="primary" id="share-copy">Copy</button>
+            <button type="button" class="ghost" id="share-native" hidden>Share…</button>
+          </div>
+          <p class="share-code">Room code <b id="share-code"></b> · <span class="waiting-dots">Waiting for them to join</span></p>
+        </div>
+
+        <div class="scoreboard">
+          <div class="score-side left"><span id="duel-name0">Player 1</span><b id="duel-score0">0</b></div>
+          <div class="score-dash" aria-hidden="true">–</div>
+          <div class="score-side right"><b id="duel-score1">0</b><span id="duel-name1">Player 2</span></div>
+        </div>
+
+        <div class="arena" id="duel-arena">
+          <div class="fighter you">
+            <p class="fighter-label" id="duel-label0">Player 1</p>
+            <div class="hand" id="duel-hand0" aria-hidden="true">✊</div>
+            <p class="pick" id="duel-pick0">&nbsp;</p>
+            <p class="lock" id="duel-lock0"></p>
+          </div>
+          <div class="vs" aria-hidden="true">VS</div>
+          <div class="fighter boss">
+            <p class="fighter-label" id="duel-label1">Player 2</p>
+            <div class="hand" id="duel-hand1" aria-hidden="true">✊</div>
+            <p class="pick" id="duel-pick1">&nbsp;</p>
+            <p class="lock" id="duel-lock1"></p>
+          </div>
+        </div>
+
+        <div class="banner" id="duel-banner" role="status" aria-live="polite">
+          <h2 id="duel-title"></h2>
+          <p id="duel-detail"></p>
+        </div>
+
+        <div class="moves" id="duel-moves" role="group" aria-label="Choose your move"></div>
+
+        <details class="rules">
+          <summary>Rules for this mode</summary>
+          <ul class="rules-list"></ul>
+        </details>
+      </section>
+
+      <!-- ================= Overlay ================= -->
       <div class="overlay" id="overlay" hidden>
         <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="overlay-title">
           <div class="overlay-emoji" id="overlay-emoji" aria-hidden="true"></div>

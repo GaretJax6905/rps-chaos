@@ -1,0 +1,16 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# One web service on the free plan. Online rooms live in memory, so keep ONE
+# gunicorn worker (threads handle concurrent players).
+services:
+  - type: web
+    name: rps-chaos
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --workers 1 --threads 8 --bind 0.0.0.0:$PORT app:app
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SECRET_KEY
+        generateValue: true

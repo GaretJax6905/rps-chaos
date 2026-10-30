@@ -20,10 +20,12 @@ def boss_plays_scissors(monkeypatch):
     monkeypatch.setattr(web.bosses, "choose", lambda *_args: ("scissors", "Snip."))
 
 
-def test_page_offers_both_modes(client):
+def test_page_offers_both_rulesets_and_every_way_to_play(client):
     page = client.get("/").get_data(as_text=True)
-    assert 'data-mode="classic"' in page
-    assert 'data-mode="spock"' in page
+    assert 'name="ruleset" value="classic"' in page
+    assert 'name="ruleset" value="spock"' in page
+    for play in ("ladder", "local", "online"):
+        assert f'data-play="{play}"' in page
     assert "ORACLE" in page
 
 

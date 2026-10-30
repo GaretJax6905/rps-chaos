@@ -1,0 +1,16 @@
+{
+  "name": "RPS Chaos",
+  "short_name": "RPS Chaos",
+  "description": "Rock Paper Scissors (+ Lizard Spock): boss battles, a mind-reading final boss, and online 2-player.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d0b1f",
+  "theme_color": "#0d0b1f",
+  "icons": [
+    { "src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/static/icon-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
