@@ -162,7 +162,7 @@ def test_illegal_move_changes_nothing(fixed_boss):
 def test_oracle_sees_the_whole_run_but_others_only_their_fight(monkeypatch):
     seen = {}
 
-    def spy(boss_id, _mode, history, _rng):
+    def spy(boss_id, _mode, history, _rng, _phase):
         seen[boss_id] = len(history)
         return "scissors", ""
 
