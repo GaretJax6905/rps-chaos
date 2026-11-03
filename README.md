@@ -1,8 +1,11 @@
 # RPS Chaos
 
-Rock Paper Scissors — or Rock Paper Scissors Lizard Spock — three ways:
+**▶ Play it: https://rps-chaos.onrender.com** (free hosting: the first visit after a quiet spell can take ~30–60 s to wake up)
 
-- **🏆 Boss Ladder (vs CPU):** five bosses, each with a phase 2. The last one, **ORACLE**, learns your patterns and, at full power, learns when you try to out-think it.
+Rock Paper Scissors — or Rock Paper Scissors Lizard Spock — four ways:
+
+- **🏆 Boss Ladder (vs CPU):** five bosses, each with a phase 2, and a power-up after every win. The last one, **ORACLE**, learns your patterns and, at full power, learns when you try to out-think it.
+- **♾️ Endless:** the bosses keep coming in tougher laps (+2 HP per lap). Chase a spot on the arcade-style top 10.
 - **🤝 Same Device:** two players pass one phone or laptop back and forth.
 - **🌐 Online:** create a room, send the link, and play a friend anywhere.
 
@@ -20,7 +23,17 @@ Built as a follow-up to the IS218 RPS-001 lab ([my-rps-001](https://github.com/G
 | 😈 The Contrarian | 4 | Beats your previous move | Double bluff: expects you to dodge the obvious counter |
 | 🔮 ORACLE | 5 | Pattern voting (`brain.predict`) | Meta-strategy (`brain.meta_choose`) |
 
-You have 5 hearts. Win a round to damage the boss; lose one to lose a heart; ties do nothing. Beating a boss restores your hearts.
+You have 5 hearts. Win a round to damage the boss; lose one to lose a heart; ties do nothing. Beating a boss restores 2 hearts and offers **3 of 5 power-ups**:
+
+| Power-up | Effect |
+| --- | --- |
+| 🛡️ Shield | Blocks the next round you lose |
+| ⚔️ Double Strike | Your next win deals 2 damage |
+| 👁️ Peek | Once, see the boss's next move before you pick (the server locks that move in, so it's honest) |
+| ❤️‍🩹 Full Heal | Restore every heart |
+| 💖 +1 Max Heart | One more heart for the rest of the run |
+
+**Score:** 100 per boss beaten + 10 per round won. **Endless high scores** work like an arcade cabinet: each device keeps its own top 10 per ruleset (in the browser's local storage), and you only enter your initials if you make the board.
 
 **ORACLE, phase 1** votes on your next move using your favorite move, what follows your last move, what you do after a win/loss/tie, and two-move sequences. The scouting report shows what it has learned.
 
@@ -35,7 +48,7 @@ You have 5 hearts. Win a round to damage the boss; lose one to lose a heart; tie
 
 ### Polish
 
-Hand-pump countdown, clash reveal, floating damage/heal numbers, phase-2 slam and glitch, boss explosion, slow-mo final blow, confetti, screen shake, a WebAudio chiptune soundtrack that speeds up for phase 2 and ORACLE, sound effects, and keyboard controls (`1`/`2`/`3` on the menu; `R` `P` `S` `L` `K` or `1`–`5` to play). It installs on a phone home screen (web app manifest + service worker).
+Hand-pump countdown, clash reveal, floating damage/heal numbers, phase-2 slam and glitch, boss explosion, slow-mo final blow, confetti, screen shake, a WebAudio chiptune soundtrack with **a different track for each boss** (faster, a semitone higher, and with drums in phase 2), sound effects, and keyboard controls (`1`/`2`/`3` on the menu; `R` `P` `S` `L` `K` or `1`–`5` to play). It installs on a phone home screen (web app manifest + service worker).
 
 ## Run it (WSL/Ubuntu, Python 3.12)
 
@@ -77,12 +90,13 @@ Runs Black, Pylint, unit and integration tests, and real Chromium browser tests.
 | `tests/test_rules.py` | All 9 classic and 25 Lizard Spock matchups, written out literally; explanations |
 | `tests/test_ai.py` | Phase-1 ORACLE, each boss strategy, HP, advancing, game over, champion |
 | `tests/test_v2.py` | Phase 2 thresholds and strategies, full-power ORACLE (catches cycles and counter-players), shot clock timing |
+| `tests/test_v3.py` | Power-up choice, Shield, Double Strike, Peek honesty, heals, Endless tiers and scoring, shot clock pausing during the choice |
 | `tests/test_rooms.py` | Hidden moves, scoring from both seats, match end and rematch, full rooms, strangers, expiry, HTTP errors, PWA files |
 | `tests/test_api.py` | Ladder API: new game, rounds, session, HTTP 400 for bad modes and moves |
-| `tests/e2e/test_game.py` | Real browser: ladder with phase 2 and boss defeat, Lizard Spock by keyboard, game over, shot clock healing, same-device match, two separate browsers playing online |
+| `tests/e2e/test_game.py` | Real browser: ladder with phase 2 and boss defeat, Lizard Spock by keyboard, game over, shot clock healing, Endless power-up pick and high-score entry, same-device match, two separate browsers playing online |
 
 Tests fix only the boss's move (or shrink the shot clock) when they need a predictable result; the real rules, HTTP, and sessions always run.
 
 ## Code map
 
-`rules.py` rulesets · `brain.py` ORACLE (both phases) · `bosses.py` boss strategies and phases · `battle.py` ladder state and shot clock (pure, no Flask) · `rooms.py` online rooms · `app.py` page + JSON API · `static/app.js` screens, animation, music, keyboard · `static/style.css` look · `static/sw.js` + `static/manifest.webmanifest` phone install · `render.yaml` deployment.
+`rules.py` rulesets · `brain.py` ORACLE (both phases) · `bosses.py` boss strategies and phases · `battle.py` run state, power-ups, Endless, score, shot clock (pure, no Flask) · `rooms.py` online rooms · `app.py` page + JSON API · `static/app.js` screens, animation, music, keyboard · `static/style.css` look · `static/sw.js` + `static/manifest.webmanifest` phone install · `render.yaml` deployment.

@@ -120,7 +120,9 @@ def test_loss_damages_player(fixed_boss):
     assert state["stats"]["losses"] == 1
 
 
-def test_defeating_a_boss_advances_and_heals(fixed_boss):
+def test_defeating_a_boss_advances_restores_two_hearts_and_offers_powerups(
+    fixed_boss,
+):
     state = battle.new_game("classic")
     state["player_hp"] = 2
     for _ in range(bosses.BOSSES[0]["hp"]):
@@ -128,7 +130,8 @@ def test_defeating_a_boss_advances_and_heals(fixed_boss):
     assert result["defeated"] == "rocky"
     assert state["boss"] == 1
     assert state["boss_hp"] == bosses.BOSSES[1]["hp"]
-    assert state["player_hp"] == battle.PLAYER_HP
+    assert state["player_hp"] == 2 + battle.HEARTS_PER_BOSS
+    assert len(state["offer"]) == battle.OFFER_SIZE
     assert fixed_boss
 
 
@@ -136,8 +139,12 @@ def test_beating_every_boss_makes_you_champion(fixed_boss):
     state = battle.new_game("classic")
     total = sum(b["hp"] for b in bosses.BOSSES)
     for _ in range(total):
+        if state["offer"]:
+            battle.choose_powerup(state, state["offer"][0])
         battle.play_round(state, "rock", random.Random(0))
     assert state["status"] == "champion"
+    assert state["stats"]["bosses"] == len(bosses.BOSSES)
+    assert not state["offer"]
     assert fixed_boss
 
 

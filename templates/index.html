@@ -38,16 +38,22 @@
             <span class="mode-key" aria-hidden="true">1</span>
             <span class="mode-icons" aria-hidden="true">🏆</span>
             <span class="mode-name">Boss Ladder</span>
-            <span class="mode-desc">You vs the CPU. Five bosses, each with a second phase.</span>
+            <span class="mode-desc">You vs the CPU. Five bosses, power-ups, and a mind-reading finale.</span>
+          </button>
+          <button type="button" class="mode-card endless" data-play="endless">
+            <span class="mode-key" aria-hidden="true">2</span>
+            <span class="mode-icons" aria-hidden="true">♾️</span>
+            <span class="mode-name">Endless</span>
+            <span class="mode-desc">The bosses keep coming, tougher every lap. Chase a high score.</span>
           </button>
           <button type="button" class="mode-card" data-play="local">
-            <span class="mode-key" aria-hidden="true">2</span>
+            <span class="mode-key" aria-hidden="true">3</span>
             <span class="mode-icons" aria-hidden="true">🤝</span>
             <span class="mode-name">Same Device</span>
             <span class="mode-desc">Two players, one screen. Pass it back and forth.</span>
           </button>
           <button type="button" class="mode-card" data-play="online">
-            <span class="mode-key" aria-hidden="true">3</span>
+            <span class="mode-key" aria-hidden="true">4</span>
             <span class="mode-icons" aria-hidden="true">🌐</span>
             <span class="mode-name">Online</span>
             <span class="mode-desc">Send a link to a friend anywhere and play live.</span>
@@ -59,6 +65,15 @@
           <label class="switch"><input type="checkbox" id="opt-music"><span>🎵 Music</span></label>
           <label class="switch"><input type="checkbox" id="opt-sound"><span>🔊 Sound effects</span></label>
         </div>
+
+        <section class="hiscores" aria-labelledby="hiscores-title">
+          <h2 id="hiscores-title">🏅 Endless High Scores <small>this device</small></h2>
+          <div class="hiscore-tabs" role="tablist" aria-label="Ruleset">
+            <button type="button" role="tab" data-hiscore="classic" aria-selected="true">Classic</button>
+            <button type="button" role="tab" data-hiscore="spock" aria-selected="false">Lizard Spock</button>
+          </div>
+          <ol class="hiscore-list" id="hiscore-list"></ol>
+        </section>
 
         <ol class="ladder-preview" aria-label="Boss ladder"></ol>
       </section>
@@ -110,6 +125,15 @@
           <div>
             <p class="boss-title" id="boss-title"></p>
             <p class="speech" id="boss-speech"></p>
+          </div>
+        </div>
+
+        <div class="hud">
+          <p class="hud-score"><span id="hud-mode">Boss Ladder</span> · Score <b id="hud-score">0</b></p>
+          <div class="inventory" id="inventory" aria-label="Power-ups">
+            <span class="item" id="inv-shield" title="Shield: blocks the next round you lose" hidden>🛡️ <b>0</b></span>
+            <span class="item" id="inv-double" title="Double Strike: your next win deals 2 damage" hidden>⚔️ <b>0</b></span>
+            <button type="button" class="item peek" id="inv-peek" title="Peek: see the boss's next move" hidden>👁️ Peek <b>0</b></button>
           </div>
         </div>
 

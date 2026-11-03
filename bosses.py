@@ -160,3 +160,23 @@ def phase(boss_hp, max_hp):
 def choose(boss_id, mode, history, rng, boss_phase=1):
     """Return (move, thought) for the given boss and phase."""
     return STRATEGIES[(boss_id, boss_phase)](mode, history, rng)
+
+
+ROMAN = ("", "", " II", " III", " IV", " V", " VI", " VII", " VIII", " IX", " X")
+
+
+def boss_for(index):
+    """The boss at a ladder position. Past the fifth, Endless mode loops the
+    roster in tougher tiers: +2 HP per tier and a Roman numeral on the name."""
+    base = BOSSES[index % len(BOSSES)]
+    tier = index // len(BOSSES) + 1
+    if tier == 1:
+        return {**base, "tier": 1}
+    suffix = ROMAN[tier] if tier < len(ROMAN) else f" {tier}"
+    return {
+        **base,
+        "name": base["name"] + suffix,
+        "title": f"Tier {tier} · {base['title']}",
+        "hp": base["hp"] + 2 * (tier - 1),
+        "tier": tier,
+    }
