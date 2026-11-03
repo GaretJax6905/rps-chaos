@@ -29,29 +29,37 @@ def _body():
 
 
 def _load():
-    """The session's run, upgraded if it predates the shot clock."""
+    """The session's run, upgraded if it was started by an older version."""
     state = session.get("game")
-    if state is not None and "clock" not in state:
-        state["clock"] = {"on": False, "start": clock(), "healed": 0}
-    return state
+    return battle.upgrade(state, clock()) if state is not None else None
+
+
+def _save(state):
+    session["game"] = state
+    session.modified = True
 
 
 def _view(state, healed=0):
     """Shape the session state for the browser."""
-    boss = bosses.BOSSES[state["boss"]]
+    boss = battle.current_boss(state)
     read = brain.predict(state["mode"], state["history"])
     if boss["id"] == "oracle" and state["status"] == "playing":
         read = {**read, "prediction": None, "counter": None, "locked": True}
     return {
         "mode": state["mode"],
+        "endless": state["endless"],
         "moves": list(rules.moves_for(state["mode"])),
-        "boss": {**boss, "index": state["boss"], "count": len(bosses.BOSSES)},
+        "boss": {**boss, "index": state["boss"], "count": battle.boss_count(state)},
         "boss_hp": state["boss_hp"],
         "phase": battle.current_phase(state),
         "player_hp": state["player_hp"],
-        "player_max": battle.PLAYER_HP,
+        "player_max": state["player_max"],
         "status": state["status"],
         "stats": state["stats"],
+        "score": battle.score(state),
+        "items": state["items"],
+        "peeked": state["peeked"][0] if state["peeked"] else None,
+        "offer": [{"id": key, **battle.POWERUPS[key]} for key in state["offer"]],
         "brain": read,
         "clock": battle.clock_view(state, clock()),
         "healed": healed,
@@ -120,7 +128,9 @@ def new_game():
     mode = body.get("mode")
     if mode not in rules.RULESETS:
         return _error("Choose a game mode: classic or spock.")
-    session["game"] = battle.new_game(mode, bool(body.get("shot_clock")), clock())
+    session["game"] = battle.new_game(
+        mode, bool(body.get("shot_clock")), clock(), bool(body.get("endless"))
+    )
     return jsonify({"state": _view(session["game"])})
 
 
@@ -132,8 +142,7 @@ def current_state():
         return jsonify({"state": None})
     healed = battle.apply_delay(state, clock())
     if healed:
-        session["game"] = state
-        session.modified = True
+        _save(state)
     return jsonify({"state": _view(state, healed)})
 
 
@@ -144,8 +153,7 @@ def restart_clock():
     if not state:
         return _error("Start a game first.")
     battle.restart_clock(state, clock())
-    session["game"] = state
-    session.modified = True
+    _save(state)
     return jsonify({"state": _view(state)})
 
 
@@ -159,9 +167,36 @@ def play():
         result = battle.play_round(state, _body().get("move"), RNG, clock())
     except ValueError as problem:
         return _error(str(problem))
-    session["game"] = state
-    session.modified = True
+    _save(state)
     return jsonify({"round": result, "state": _view(state)})
+
+
+@app.post("/api/powerup")
+def powerup():
+    """Take one of the power-ups offered after a boss falls."""
+    state = _load()
+    if not state:
+        return _error("Start a game first.")
+    try:
+        picked = battle.choose_powerup(state, _body().get("id"), clock())
+    except ValueError as problem:
+        return _error(str(problem))
+    _save(state)
+    return jsonify({"picked": picked, "state": _view(state)})
+
+
+@app.post("/api/peek")
+def peek():
+    """Spend a Peek to see the boss's next move."""
+    state = _load()
+    if not state:
+        return _error("Start a game first.")
+    try:
+        move = battle.use_peek(state, RNG)
+    except ValueError as problem:
+        return _error(str(problem))
+    _save(state)
+    return jsonify({"move": move, "state": _view(state)})
 
 
 # ---------- online rooms ----------

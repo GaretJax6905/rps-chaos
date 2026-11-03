@@ -83,14 +83,28 @@
   };
 
   const NOTE = (n) => 440 * 2 ** ((n - 69) / 12); // MIDI note -> Hz
+  function kick(start, dest) {
+    const ac = ctx(); if (!ac) return;
+    const osc = ac.createOscillator(); const gain = ac.createGain();
+    osc.frequency.setValueAtTime(150, start);
+    osc.frequency.exponentialRampToValueAtTime(40, start + 0.12);
+    gain.gain.setValueAtTime(0.25, start);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.18);
+    osc.connect(gain).connect(dest); osc.start(start); osc.stop(start + 0.2);
+  }
+  // Each boss has its own track. Phase 2 plays it faster, a semitone higher,
+  // with drums. Notes are MIDI numbers; arp is a list of intervals per 16th.
+  const TRACKS = {
+    menu: { bpm: 100, roots: [45, 41, 43, 40], arp: [0, 3, 7, 12], lead: "triangle", bass: "triangle", hats: false, kick: false },
+    duel: { bpm: 128, roots: [45, 45, 41, 43], arp: [0, 7, 12, 15], lead: "square", bass: "triangle", hats: true, kick: true },
+    rocky: { bpm: 112, roots: [40, 40, 43, 45], arp: [0, 7, 12, 7], lead: "square", bass: "sawtooth", hats: true, kick: true },
+    mirror: { bpm: 120, roots: [48, 45, 41, 43], arp: [0, 4, 7, 11, 14, 11, 7, 4], lead: "sine", bass: "triangle", hats: false, kick: true },
+    cycler: { bpm: 140, roots: [45, 45, 45, 48], arp: [0, 12, 7, 12, 3, 12, 7, 12], lead: "square", bass: "square", hats: true, kick: true },
+    contrarian: { bpm: 132, roots: [44, 45, 44, 47], arp: [0, 3, 6, 9, 6, 3], lead: "sawtooth", bass: "sawtooth", hats: true, kick: true },
+    oracle: { bpm: 96, roots: [45, 47, 49, 51], arp: [0, 2, 4, 6, 8, 10], lead: "triangle", bass: "sine", hats: false, kick: false },
+  };
   const music = {
-    mood: "menu", step: 0, next: 0, timer: null, bus: null,
-    moods: {
-      // bass roots (MIDI), chord intervals, bpm, hats
-      menu: { bpm: 104, roots: [45, 41, 43, 40], chord: [0, 3, 7, 12], hats: false },
-      battle: { bpm: 128, roots: [45, 45, 41, 43], chord: [0, 7, 12, 15], hats: true },
-      boss: { bpm: 150, roots: [45, 46, 45, 43], chord: [0, 3, 6, 12], hats: true },
-    },
+    track: "menu", phase: 1, step: 0, next: 0, timer: null, bus: null,
     start() {
       if (this.timer || !settings.music) return;
       const ac = ctx(); if (!ac) return;
@@ -102,21 +116,25 @@
       clearInterval(this.timer); this.timer = null;
       if (this.bus) { try { this.bus.disconnect(); } catch { /* ignore */ } this.bus = null; }
     },
-    setMood(mood) { this.mood = mood; },
+    setMood(track, phase = 1) {
+      const name = TRACKS[track] ? track : "duel";
+      if (name !== this.track) this.step = 0;
+      this.track = name; this.phase = phase;
+    },
     schedule() {
       const ac = ctx(); if (!ac || !this.bus) return;
       while (this.next < ac.currentTime + 0.12) {
-        const m = this.moods[this.mood];
-        const sixteenth = 60 / m.bpm / 4;
-        const bar = Math.floor(this.step / 16) % m.roots.length;
+        const t = TRACKS[this.track]; const p2 = this.phase === 2;
+        const sixteenth = 60 / (t.bpm * (p2 ? 1.2 : 1)) / 4;
         const s = this.step % 16;
-        const root = m.roots[bar];
-        if (s % 4 === 0) tone(NOTE(root), this.next, sixteenth * 3, "triangle", 0.09, this.bus);
-        if (s % 4 === 2) tone(NOTE(root + 12), this.next, sixteenth, "triangle", 0.05, this.bus);
-        const arp = m.chord[s % m.chord.length];
-        tone(NOTE(root + 24 + arp), this.next, sixteenth * 0.9, "square", 0.018, this.bus);
-        if (m.hats && s % 2 === 1) noise(this.next, 0.04, 0.05, this.bus);
-        if (m.hats && (s === 4 || s === 12)) noise(this.next, 0.12, 0.08, this.bus);
+        const root = t.roots[Math.floor(this.step / 16) % t.roots.length] + (p2 ? 1 : 0);
+        if (s % 4 === 0) tone(NOTE(root), this.next, sixteenth * 3, t.bass, 0.07, this.bus);
+        if (s % 4 === 2) tone(NOTE(root + 12), this.next, sixteenth, t.bass, 0.04, this.bus);
+        const interval = t.arp[this.step % t.arp.length];
+        tone(NOTE(root + 24 + interval), this.next, sixteenth * 0.9, t.lead, t.lead === "sine" ? 0.04 : 0.018, this.bus);
+        if ((t.kick || p2) && s % 4 === 0) kick(this.next, this.bus);
+        if ((t.hats || p2) && s % 2 === 1) noise(this.next, 0.04, 0.05, this.bus);
+        if ((t.hats || p2) && (s === 4 || s === 12)) noise(this.next, 0.12, 0.08, this.bus);
         this.next += sixteenth; this.step++;
       }
     },
@@ -200,11 +218,13 @@
     $("overlay").hidden = true;
     if (id !== "battle") ladder.stopClock();
     if (id !== "duel") online.stopPolling();
-    music.setMood(id === "battle" || id === "duel" ? "battle" : "menu");
+    if (id !== "battle") music.setMood(id === "duel" ? "duel" : "menu");
     window.scrollTo(0, 0);
   }
 
   function overlay(emoji, title, text, actions) {
+    document.querySelectorAll('#overlay [data-temp]').forEach((el) => el.remove());
+    $("overlay-title").classList.remove("newhigh");
     $("overlay-emoji").textContent = emoji;
     $("overlay-title").textContent = title;
     $("overlay-text").textContent = text;
@@ -262,6 +282,7 @@
     if (radio) radio.checked = true;
     document.querySelectorAll('input[name="ruleset"]').forEach((r) => r.addEventListener("change", () => {
       settings.ruleset = ruleset(); store.set("rpsChaosRuleset", settings.ruleset);
+      hiscores.showTab(settings.ruleset);
     }));
     $("opt-clock").checked = settings.clock;
     $("opt-clock").addEventListener("change", (e) => { settings.clock = e.target.checked; store.set("rpsChaosClock", settings.clock); });
@@ -275,11 +296,13 @@
   }
   function choosePlay(kind) {
     if (kind === "ladder") ladder.start(ruleset());
+    else if (kind === "endless") ladder.start(ruleset(), true);
     else openSetup(kind);
   }
   function goMenu() {
     online.code = null; online.room = null; local.s = null;
     show("menu");
+    hiscores.showTab(ruleset());
     if (location.pathname !== "/") history.replaceState(null, "", "/");
     $("menu").querySelector(".mode-card").focus();
   }
@@ -346,8 +369,8 @@
   const ladder = {
     state: null, busy: false, deadline: 0, raf: 0, polling: false, lastPoll: 0,
 
-    async start(mode) {
-      const data = await api("/api/new", { mode, shot_clock: settings.clock });
+    async start(mode, endless = false) {
+      const data = await api("/api/new", { mode, endless, shot_clock: settings.clock });
       this.state = data.state;
       show("battle");
       buildMoves($("moves"), this.state.moves); buildRules(mode);
@@ -371,15 +394,17 @@
 
     render() {
       const s = this.state;
+      const lap = s.endless ? s.boss.index % CONFIG.bosses.length : s.boss.index;
       $("battle").querySelector(".ladder").innerHTML = CONFIG.bosses.map((b, i) => {
-        const done = i < s.boss.index || s.status === "champion";
-        const cls = done ? "done" : i === s.boss.index ? "current" : "";
+        const done = i < lap || s.status === "champion";
+        const cls = done ? "done" : i === lap ? "current" : "";
         return `<li class="${cls}" title="${b.name}"><span aria-hidden="true">${b.emoji}</span><span class="sr">${b.name}${done ? " (defeated)" : ""}</span></li>`;
       }).join("");
       const p2 = s.phase === 2 && s.status === "playing";
       $("boss-name").textContent = (p2 ? "⚡ " : "") + s.boss.name;
       $("boss-avatar").textContent = s.boss.emoji;
-      $("boss-title").textContent = `Boss ${s.boss.index + 1}/${s.boss.count} · ${p2 ? "PHASE 2" : s.boss.title}`;
+      const number = s.boss.count ? `Boss ${s.boss.index + 1}/${s.boss.count}` : `Boss #${s.boss.index + 1}`;
+      $("boss-title").textContent = `${number} · ${p2 ? "PHASE 2" : s.boss.title}`;
       $("arena").classList.toggle("phase2", p2);
       $("boss-card").classList.toggle("phase2", p2);
       const hp = Math.max(0, s.boss_hp);
@@ -405,7 +430,37 @@
       $("stat-wins").textContent = st.wins; $("stat-losses").textContent = st.losses;
       $("stat-ties").textContent = st.ties; $("stat-streak").textContent = st.streak;
       $("stat-best").textContent = best;
-      music.setMood(p2 || s.boss.id === "oracle" ? "boss" : "battle");
+      this.renderHud();
+      music.setMood(s.boss.id, s.phase);
+    },
+
+    renderHud() {
+      const s = this.state;
+      $("hud-mode").textContent = s.endless ? `♾️ Endless · Lap ${s.boss.tier}` : "🏆 Boss Ladder";
+      $("hud-score").textContent = s.score;
+      const items = s.items;
+      [["shield", "inv-shield"], ["double", "inv-double"], ["peek", "inv-peek"]].forEach(([key, id]) => {
+        const el = $(id); const before = Number(el.querySelector("b").textContent);
+        el.hidden = items[key] < 1 && !(key === "peek" && s.peeked);
+        el.querySelector("b").textContent = items[key];
+        if (items[key] > before) retrigger(el, "flash");
+      });
+      $("inv-peek").disabled = Boolean(s.peeked) || items.peek < 1;
+      if (s.peeked && s.status === "playing") {
+        $("boss-pick").textContent = `👁️ will play ${s.peeked}`;
+        $("boss-pick").classList.add("peek-reveal");
+      } else {
+        $("boss-pick").classList.remove("peek-reveal");
+      }
+    },
+
+    async usePeek() {
+      if (this.busy || !this.state || !$("overlay").hidden) return;
+      try {
+        const data = await api("/api/peek", {});
+        this.state = data.state; this.render(); sfx.lock();
+        this.banner("", `👁️ ${this.state.boss.name} will play ${data.move.toUpperCase()}`, "Use it wisely.");
+      } catch (err) { this.banner("lose", "Can't peek", err.message); }
     },
 
     async play(move) {
@@ -445,7 +500,11 @@
       this.banner(round.outcome, titles[round.outcome], round.explanation);
       if (round.outcome === "win") {
         sfx.win(); retrigger($("arena"), "flash-win"); retrigger($("boss-hpbar"), "hit");
-        floatText($("boss-hpbar"), "-1", "dmg");
+        floatText($("boss-hpbar"), round.doubled ? "-2 ⚔️" : "-1", "dmg");
+        if (round.doubled) retrigger(document.body, "shake");
+      } else if (round.outcome === "lose" && round.shielded) {
+        sfx.lock(); floatText($("you-hp"), "🛡️ Blocked!", "heal");
+        this.banner("tie", "Shield blocked it!", round.explanation);
       } else if (round.outcome === "lose") {
         sfx.lose(); retrigger($("arena"), "flash-lose"); retrigger(document.body, "shake");
         retrigger($("you-hp"), "hit"); floatText($("you-hp"), "-1 ❤️", "dmg");
@@ -486,26 +545,49 @@
       }
       if (s.status === "champion") {
         confetti(260); setTimeout(() => confetti(200), 600);
-        overlay("👑", "Champion!", `You beat all five bosses — including ORACLE at full power. ${s.stats.wins} wins, ${s.stats.losses} losses, ${s.stats.ties} ties.`, [
-          ["Play again", () => this.start(s.mode)], ["Menu", goMenu],
+        overlay("👑", "Champion!", `You beat all five bosses — including ORACLE at full power. Score ${s.score}. ${s.stats.wins} wins, ${s.stats.losses} losses, ${s.stats.ties} ties. Think you can go further? Try Endless.`, [
+          ["Play Endless", () => this.start(s.mode, true)], ["Play again", () => this.start(s.mode)], ["Menu", goMenu],
         ]);
       } else if (round.defeated) {
-        const next = s.boss;
-        overlay(next.emoji, "Boss defeated!", `Next up: ${next.name}, ${next.title}. Hint: ${next.hint} Your health is restored.`, [
-          [`Fight ${next.name}`, async () => {
-            closeOverlay(); this.resetArena();
-            this.banner("", "New challenger!", `${next.name} enters the arena.`);
-            $("boss-speech").textContent = next.intro;
-            const data = await api("/api/clock/restart", {});
-            this.state = data.state; this.syncClock();
-          }],
-        ]);
+        this.showOffer();
       } else if (s.status === "lost") {
         await wait(700); sfx.gameover();
-        overlay("💀", "Game over", `${s.boss.name} knocked you out. Hint: ${s.boss.hint}`, [
+        if (s.endless) { hiscores.gameOver(s, () => this.start(s.mode, true)); return; }
+        overlay("💀", "Game over", `${s.boss.name} knocked you out. Score ${s.score}. Hint: ${s.boss.hint}`, [
           ["Try again", () => this.start(s.mode)], ["Menu", goMenu],
         ]);
       }
+    },
+
+    showOffer() {
+      const s = this.state; const next = s.boss;
+      overlay(next.emoji, "Boss defeated!", `+2 hearts. Next up: ${next.name} — ${next.title}. Hint: ${next.hint} Choose a power-up:`, []);
+      const box = document.createElement("div"); box.className = "offer";
+      s.offer.forEach((p, i) => {
+        const btn = document.createElement("button");
+        btn.type = "button"; btn.className = "offer-card"; btn.dataset.powerup = p.id;
+        btn.innerHTML = `<span class="oe" aria-hidden="true"></span><span><b></b><span></span></span><kbd>${i + 1}</kbd>`;
+        btn.querySelector(".oe").textContent = p.emoji;
+        btn.querySelector("b").textContent = p.name;
+        btn.querySelector("span > span").textContent = p.desc;
+        btn.addEventListener("click", () => this.pick(p.id));
+        box.appendChild(btn);
+      });
+      $("overlay-actions").appendChild(box);
+      box.querySelector("button").focus();
+    },
+
+    async pick(id) {
+      try {
+        const data = await api("/api/powerup", { id });
+        this.state = data.state; closeOverlay(); this.resetArena(); this.render();
+        sfx.join();
+        const next = this.state.boss;
+        this.banner("", "New challenger!", `${data.picked} ready. ${next.name} enters the arena.`);
+        $("boss-speech").textContent = next.intro;
+        setMovesDisabled($("moves"), false);
+        this.syncClock();
+      } catch (err) { $("overlay-text").textContent = err.message; }
     },
 
     // ----- shot clock -----
@@ -544,6 +626,87 @@
   $("moves").addEventListener("click", (e) => {
     const btn = e.target.closest(".move"); if (btn) ladder.play(btn.dataset.move);
   });
+  $("inv-peek").addEventListener("click", () => ladder.usePeek());
+
+  // ====================================================================
+  // Endless high scores: an arcade cabinet's top 10, kept on this device
+  // ====================================================================
+  const hiscores = {
+    TOP: 10,
+    key: (mode) => `rpsChaosHi:${mode}`,
+    list(mode) { const v = store.get(this.key(mode), []); return Array.isArray(v) ? v.slice(0, this.TOP) : []; },
+    qualifies(mode, score) {
+      const board = this.list(mode);
+      return score > 0 && (board.length < this.TOP || score > board[board.length - 1].score);
+    },
+    add(mode, entry) {
+      const board = this.list(mode);
+      const stamp = Date.now();
+      board.push({ ...entry, at: stamp });
+      board.sort((a, b) => b.score - a.score || a.at - b.at);
+      const kept = board.slice(0, this.TOP);
+      store.set(this.key(mode), kept);
+      return kept.findIndex((e) => e.at === stamp) + 1;
+    },
+    renderList(ol, mode, highlight = 0) {
+      const board = this.list(mode);
+      ol.innerHTML = "";
+      if (!board.length) {
+        const li = document.createElement("li"); li.className = "empty";
+        li.textContent = "No scores yet. Play Endless to claim #1!"; ol.appendChild(li); return;
+      }
+      board.forEach((e, i) => {
+        const li = document.createElement("li");
+        if (i + 1 === highlight) li.className = "mine";
+        li.innerHTML = '<span class="rank"></span><span class="who"></span><span class="meta"></span><span class="pts"></span>';
+        li.querySelector(".rank").textContent = `${i + 1}.`;
+        li.querySelector(".who").textContent = e.name;
+        li.querySelector(".meta").textContent = `${e.bosses} boss${e.bosses === 1 ? "" : "es"}`;
+        li.querySelector(".pts").textContent = e.score;
+        ol.appendChild(li);
+      });
+    },
+    showTab(mode) {
+      document.querySelectorAll("[data-hiscore]").forEach((t) => t.setAttribute("aria-selected", String(t.dataset.hiscore === mode)));
+      this.renderList($("hiscore-list"), mode);
+    },
+    gameOver(s, retry) {
+      const summary = `Score ${s.score} · ${s.stats.bosses} boss${s.stats.bosses === 1 ? "" : "es"} beaten · knocked out by ${s.boss.name}.`;
+      const actions = [["Play again", retry], ["Menu", goMenu]];
+      if (!this.qualifies(s.mode, s.score)) {
+        overlay("💀", "Game over", summary, actions);
+        this.appendBoard(s.mode, 0);
+        return;
+      }
+      overlay("🏅", "NEW HIGH SCORE!", `${summary} Enter your name for the board:`, []);
+      $("overlay-title").classList.add("newhigh");
+      const form = document.createElement("form"); form.className = "name-entry";
+      form.innerHTML = '<input maxlength="10" autocomplete="nickname" aria-label="Your name for the high score board" placeholder="AAA"><button type="submit" class="primary">Save score</button>';
+      const input = form.querySelector("input");
+      input.value = store.get("rpsChaosArcadeName", "");
+      input.addEventListener("input", () => { input.value = input.value.toUpperCase().replace(/[^A-Z0-9 .!?_-]/g, ""); });
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = input.value.trim() || "???";
+        store.set("rpsChaosArcadeName", name);
+        const rank = this.add(s.mode, { name, score: s.score, bosses: s.stats.bosses, rounds: s.stats.rounds });
+        $("overlay-title").classList.remove("newhigh");
+        overlay("🏆", `You're #${rank}!`, summary, actions);
+        this.appendBoard(s.mode, rank);
+        sfx.fanfare(); confetti(160);
+        this.showTab(s.mode);
+      });
+      $("overlay-actions").appendChild(form);
+      input.focus(); input.select();
+    },
+    appendBoard(mode, rank) {
+      const ol = document.createElement("ol"); ol.className = "hiscore-list";
+      this.renderList(ol, mode, rank);
+      $("overlay-actions").before(ol);
+      ol.dataset.temp = "1";
+    },
+  };
+  document.querySelectorAll("[data-hiscore]").forEach((t) => t.addEventListener("click", () => hiscores.showTab(t.dataset.hiscore)));
 
   // ====================================================================
   // Shared duel view (same device + online)
@@ -782,10 +945,14 @@
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target.closest('input:not([type="checkbox"]):not([type="radio"]), select, textarea')) return;
-    if (!$("overlay").hidden) return;
     const key = e.key.toLowerCase();
+    if (!$("overlay").hidden) {
+      const offers = document.querySelectorAll("#overlay .offer-card");
+      if (offers.length && /^[1-3]$/.test(key)) { e.preventDefault(); offers[Number(key) - 1].click(); }
+      return;
+    }
     if (screen === "menu") {
-      const kind = { 1: "ladder", 2: "local", 3: "online" }[key];
+      const kind = { 1: "ladder", 2: "endless", 3: "local", 4: "online" }[key];
       if (kind) { e.preventDefault(); choosePlay(kind); }
       return;
     }
@@ -810,6 +977,7 @@
   // Boot
   // ====================================================================
   initMenu();
+  hiscores.showTab(settings.ruleset);
   if (CONFIG.room) online.open(CONFIG.room);
   else show("menu");
   if ("serviceWorker" in navigator && !navigator.webdriver) {

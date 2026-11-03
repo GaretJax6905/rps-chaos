@@ -49,8 +49,10 @@ def test_ladder_round_phase_two_and_boss_defeat(page: Page, live_server, boss_mo
     boss_move["value"] = "rock"
     page.locator('#moves .move[data-move="paper"]').click()
     expect(page.get_by_role("dialog")).to_contain_text("Boss defeated!")
-    page.get_by_role("button", name="Fight Mirror Max").click()
+    expect(page.locator(".offer-card")).to_have_count(3)
+    page.locator(".offer-card").first.click()
     expect(page.locator("#boss-name")).to_have_text("Mirror Max")
+    expect(page.locator("#banner-title")).to_have_text("New challenger!")
 
 
 def test_spock_ladder_with_keyboard(page: Page, live_server, boss_move):
@@ -99,7 +101,7 @@ def test_shot_clock_heals_the_boss(page: Page, live_server, boss_move, monkeypat
 def test_same_device_match(page: Page, live_server):
     """Two players share one screen; the first pick is hidden behind a hand-off."""
     page.goto(live_server)
-    page.keyboard.press("2")
+    page.keyboard.press("3")
     page.get_by_label("Player 1 name").fill("Tom")
     page.get_by_label("Player 2 name").fill("Mercedes")
     page.get_by_role("button", name="Start match").click()
@@ -120,7 +122,7 @@ def test_online_match_between_two_browsers(browser: Browser, live_server):
     """Two separate browser sessions play over the share link."""
     host = browser.new_context().new_page()
     host.goto(live_server)
-    host.keyboard.press("3")
+    host.keyboard.press("4")
     host.get_by_label("Your name").fill("Tom")
     host.get_by_role("button", name="Create room").click()
     link = host.locator("#share-link")
@@ -144,3 +146,36 @@ def test_online_match_between_two_browsers(browser: Browser, live_server):
     expect(guest.locator("#duel-detail")).to_have_text("Paper covers rock")
     expect(host.locator("#duel-score0")).to_have_text("1")
     expect(guest.locator("#duel-score1")).to_have_text("1")
+
+
+def test_endless_powerup_and_arcade_high_score(page: Page, live_server, boss_move):
+    """Beat a boss, pick a power-up by key, get knocked out, enter initials."""
+    page.goto(live_server)
+    expect(page.locator("#hiscore-list")).to_contain_text("No scores yet")
+    page.keyboard.press("2")
+    expect(page.locator("#hud-mode")).to_contain_text("Endless")
+    for _ in range(3):
+        page.keyboard.press("r")
+        page.wait_for_timeout(1000)
+    expect(page.locator(".offer-card")).to_have_count(3)
+    page.keyboard.press("1")
+    expect(page.get_by_role("dialog")).to_be_hidden()
+    expect(page.locator("#banner-title")).to_have_text("New challenger!")
+    expect(page.locator("#boss-name")).to_have_text("Mirror Max")
+    expect(page.locator("#hud-score")).to_have_text("130")
+
+    boss_move["value"] = "paper"
+    for losses in range(1, 9):
+        page.keyboard.press("r")
+        expect(page.locator("#stat-losses")).to_have_text(str(losses))
+        page.wait_for_timeout(900)
+        if page.get_by_role("dialog").is_visible():
+            break
+    expect(page.get_by_role("dialog")).to_contain_text("NEW HIGH SCORE!")
+    page.get_by_label("Your name for the high score board").fill("tom")
+    page.get_by_role("button", name="Save score").click()
+    expect(page.get_by_role("dialog")).to_contain_text("You're #1!")
+    page.get_by_role("dialog").get_by_role("button", name="Menu").click()
+    board = page.locator("#hiscore-list")
+    expect(board).to_contain_text("TOM")
+    expect(board).to_contain_text("130")
