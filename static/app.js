@@ -321,6 +321,8 @@
     $("target").innerHTML = CONFIG.targets.map((t) => `<option value="${t}" ${t === 3 ? "selected" : ""}>First to ${t}</option>`).join("");
     $("field-name2").hidden = kind !== "local";
     $("field-target").hidden = kind === "join";
+    $("join-code").hidden = kind !== "online";
+    $("code-error").textContent = ""; $("room-code").value = "";
     $("label-name1").textContent = kind === "local" ? "Player 1 name" : "Your name";
     const rules = CONFIG.rulesets[ruleset()].name;
     if (kind === "local") {
@@ -329,7 +331,7 @@
       $("setup-go").textContent = "Start match";
     } else if (kind === "online") {
       $("setup-title").textContent = "Online Match";
-      $("setup-lede").textContent = `${rules}. You'll get a link to send to your opponent.`;
+      $("setup-lede").textContent = `${rules}. Create a room and share its link or code — or join a friend's room with their code.`;
       $("setup-go").textContent = "Create room";
     } else {
       $("setup-title").textContent = `Join room ${code}`;
@@ -339,6 +341,38 @@
     }
     $("name1").focus();
   }
+  // Join an existing room by typing its code (no link needed).
+  const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{4}$/;
+  $("room-code").addEventListener("input", (e) => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
+  });
+  $("code-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const code = $("room-code").value.trim().toUpperCase();
+    $("code-error").textContent = "";
+    if (!CODE_RE.test(code)) {
+      $("code-error").textContent = "Room codes are 4 letters/numbers, like K7QX.";
+      $("room-code").focus(); return;
+    }
+    const name = $("name1").value.trim();
+    store.set("rpsChaosName", name);
+    // Already in this room on this device (e.g. after a refresh)? Rejoin the same seat.
+    const saved = store.get(`rpsRoom:${code}`, null);
+    if (saved) {
+      try {
+        const data = await api(`/api/rooms/${code}`, undefined, { "X-Player-Token": saved });
+        online.enter(code, saved, data.room); return;
+      } catch { /* stale: join fresh below */ }
+    }
+    try {
+      const data = await api(`/api/rooms/${code}/join`, { name });
+      online.enter(code, data.token, data.room);
+      sfx.join();
+    } catch (err) {
+      $("code-error").textContent = err.message;
+    }
+  });
+
   $("setup-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const name1 = $("name1").value.trim(); const name2 = $("name2").value.trim();

@@ -92,6 +92,17 @@
           <button type="submit" class="primary big" id="setup-go"></button>
           <p class="form-error" id="setup-error" role="alert"></p>
         </form>
+
+        <div class="join-code" id="join-code" hidden>
+          <p class="or"><span>or join a friend's room</span></p>
+          <form id="code-form" class="code-form">
+            <label class="field"><span>Room code</span>
+              <input id="room-code" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD">
+            </label>
+            <button type="submit" class="ghost big" id="code-go">Join room</button>
+          </form>
+          <p class="form-error" id="code-error" role="alert"></p>
+        </div>
       </section>
 
       <!-- ================= Boss Ladder battle ================= -->
@@ -186,7 +197,9 @@
             <button type="button" class="primary" id="share-copy">Copy</button>
             <button type="button" class="ghost" id="share-native" hidden>Share…</button>
           </div>
-          <p class="share-code">Room code <b id="share-code"></b> · <span class="waiting-dots">Waiting for them to join</span></p>
+          <p class="share-code">or have them open RPS Chaos → <b>Online</b> and enter code</p>
+          <p class="share-big" id="share-code" aria-label="Room code to share"></p>
+          <p class="share-wait"><span class="waiting-dots">Waiting for them to join</span></p>
         </div>
 
         <div class="scoreboard">

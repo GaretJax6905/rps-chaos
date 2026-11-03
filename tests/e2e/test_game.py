@@ -179,3 +179,36 @@ def test_endless_powerup_and_arcade_high_score(page: Page, live_server, boss_mov
     board = page.locator("#hiscore-list")
     expect(board).to_contain_text("TOM")
     expect(board).to_contain_text("130")
+
+
+def test_join_online_room_by_typing_the_code(browser: Browser, live_server):
+    """A friend who already has the game open joins with the 4-character code."""
+    host = browser.new_context().new_page()
+    host.goto(live_server)
+    host.keyboard.press("4")
+    host.get_by_label("Your name").fill("Tom")
+    host.get_by_role("button", name="Create room").click()
+    code = host.locator("#share-code")
+    expect(code).to_have_text(re.compile(r"^[A-Z0-9]{4}$"))
+    room = code.inner_text()
+
+    guest = browser.new_context().new_page()
+    guest.goto(live_server)
+    guest.keyboard.press("4")
+    guest.get_by_label("Your name").fill("Mercedes")
+    code_box = guest.get_by_label("Room code", exact=True)
+
+    code_box.fill("AB")
+    guest.get_by_role("button", name="Join room").click()
+    expect(guest.locator("#code-error")).to_contain_text("4 letters")
+
+    code_box.fill("ZZZZ" if room != "ZZZZ" else "YYYY")
+    guest.get_by_role("button", name="Join room").click()
+    expect(guest.locator("#code-error")).to_contain_text("doesn't exist")
+
+    code_box.fill(room.lower())
+    expect(code_box).to_have_value(room)
+    guest.get_by_role("button", name="Join room").click()
+    expect(guest.locator("#duel-name1")).to_have_text("Tom")
+    expect(host.locator("#duel-name1")).to_have_text("Mercedes")
+    expect(guest).to_have_url(re.compile(f"/r/{room}$"))
