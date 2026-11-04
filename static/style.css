@@ -375,3 +375,13 @@ body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-are
 .name-entry { grid-template-columns: minmax(0, 1fr); }
 .name-entry input, .name-entry button { width: 100%; min-width: 0; }
 .dialog { max-height: calc(100vh - 32px); overflow-y: auto; }
+
+/* ======================= v4: join by code ======================= */
+.join-code { margin-top: 22px; }
+.or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: .85rem; text-transform: uppercase; letter-spacing: .1em; }
+.or::before, .or::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+.code-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: end; text-align: left; margin-top: 12px; }
+.code-form input { font-family: var(--display); font-size: 1.5rem; letter-spacing: .35em; text-align: center; text-transform: uppercase; min-width: 0; }
+.code-form .ghost.big { padding: 14px 18px; font-weight: 700; color: var(--text); border-color: var(--cyan); }
+.share-big { margin: 4px 0 0; font-family: var(--display); font-size: clamp(2.2rem, 10vw, 3rem); letter-spacing: .3em; color: var(--gold); text-shadow: 0 0 20px #ffd23f55; }
+.share-wait { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }

@@ -44,7 +44,7 @@ You have 5 hearts. Win a round to damage the boss; lose one to lose a heart; tie
 ### Two players
 
 - **Same Device:** player 1 picks, a hand-off screen hides it, player 2 picks, then both are revealed. First to 1, 2, 3, or 5.
-- **Online:** each player's move stays on the server, hidden from the other until both lock in. Rooms have a 4-character code and a link like `/r/K7QX`; refreshing the page rejoins the same seat. Rematches need both players to agree.
+- **Online:** create a room and share its link, or read out the 4-character code: a friend who already has the game open picks **Online** and types it in. Each player's move stays on the server, hidden from the other until both lock in. Rooms have a 4-character code and a link like `/r/K7QX`; refreshing the page rejoins the same seat. Rematches need both players to agree.
 
 ### Polish
 
@@ -93,7 +93,7 @@ Runs Black, Pylint, unit and integration tests, and real Chromium browser tests.
 | `tests/test_v3.py` | Power-up choice, Shield, Double Strike, Peek honesty, heals, Endless tiers and scoring, shot clock pausing during the choice |
 | `tests/test_rooms.py` | Hidden moves, scoring from both seats, match end and rematch, full rooms, strangers, expiry, HTTP errors, PWA files |
 | `tests/test_api.py` | Ladder API: new game, rounds, session, HTTP 400 for bad modes and moves |
-| `tests/e2e/test_game.py` | Real browser: ladder with phase 2 and boss defeat, Lizard Spock by keyboard, game over, shot clock healing, Endless power-up pick and high-score entry, same-device match, two separate browsers playing online |
+| `tests/e2e/test_game.py` | Real browser: ladder with phase 2 and boss defeat, Lizard Spock by keyboard, game over, shot clock healing, Endless power-up pick and high-score entry, same-device match, two separate browsers playing online by link and by typed room code |
 
 Tests fix only the boss's move (or shrink the shot clock) when they need a predictable result; the real rules, HTTP, and sessions always run.
 
