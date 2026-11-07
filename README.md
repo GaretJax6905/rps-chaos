@@ -1,6 +1,20 @@
 # RPS Chaos
 
-**▶ Play it: https://rps-chaos.onrender.com** (free hosting: the first visit after a quiet spell can take ~30–60 s to wake up)
+**Rock Paper Scissors turned into a boss-rush arcade game, with a pattern-learning AI boss, real-time online play and an installable mobile web app.**
+
+[![Play it live](https://img.shields.io/badge/▶_play_it-rps--chaos.onrender.com-ff3d9a?style=for-the-badge)](https://rps-chaos.onrender.com)
+[![Python checks](https://github.com/GaretJax6905/rps-chaos/actions/workflows/python.yml/badge.svg)](https://github.com/GaretJax6905/rps-chaos/actions/workflows/python.yml)
+
+![RPS Chaos boss fight against Rocky Boulderson, with ORACLE's scouting report predicting the player's next move](docs/screenshot.png)
+
+> Free hosting: the first visit after a quiet spell can take ~30–60 s to wake up.
+
+| | |
+| --- | --- |
+| **Front end** | Vanilla JavaScript, HTML, CSS, Web Audio API, PWA (manifest + service worker) |
+| **Back end** | Python 3.12, Flask JSON API, server-side game state |
+| **Quality** | 123 automated tests, including 8 real-browser Playwright journeys, plus Black and Pylint. All run in GitHub Actions on every push and PR |
+| **Deploy** | Render, auto-deployed from `main` |
 
 Rock Paper Scissors — or Rock Paper Scissors Lizard Spock — four ways:
 
@@ -8,8 +22,6 @@ Rock Paper Scissors — or Rock Paper Scissors Lizard Spock — four ways:
 - **♾️ Endless:** the bosses keep coming in tougher laps (+2 HP per lap). Chase a spot on the arcade-style top 10.
 - **🤝 Same Device:** two players pass one phone or laptop back and forth.
 - **🌐 Online:** create a room, send the link, and play a friend anywhere.
-
-Built as a follow-up to the IS218 RPS-001 lab ([my-rps-001](https://github.com/GaretJax6905/my-rps-001)), with Claude (AI) as a coding partner.
 
 ## Features
 
@@ -49,6 +61,25 @@ You have 5 hearts. Win a round to damage the boss; lose one to lose a heart; tie
 ### Polish
 
 Hand-pump countdown, clash reveal, floating damage/heal numbers, phase-2 slam and glitch, boss explosion, slow-mo final blow, confetti, screen shake, a WebAudio chiptune soundtrack with **a different track for each boss** (faster, a semitone higher, and with drums in phase 2), sound effects, and keyboard controls (`1`/`2`/`3` on the menu; `R` `P` `S` `L` `K` or `1`–`5` to play). It installs on a phone home screen (web app manifest + service worker).
+
+## Front-end highlights
+
+- **Accessible by default.** Every move works by keyboard (`R` `P` `S` `L` `K` or `1`–`5`). Results are announced through `aria-live` regions. Dialogs use `role="dialog"` with `aria-modal` and move focus to their first button. With `prefers-reduced-motion` set, it skips animations, confetti and floating numbers, and removes the dramatic pauses.
+- **Honest UI.** The server owns the game state. Online opponents' moves stay hidden until both players lock in, Peek shows a move the server has already locked, and the shot clock is timed on the server, so the front end can't cheat.
+- **Game feel without a game engine.** Countdown, clash reveal, damage numbers, phase-2 glitch, confetti and screen shake are all hand-built with CSS, DOM animation and a small canvas for confetti.
+- **Generated soundtrack.** Each boss has its own chiptune track, synthesized live with the Web Audio API, with no audio files.
+- **Installable.** A web app manifest and service worker let it install to a phone home screen.
+
+## How I worked: AI-assisted, test-verified
+
+I built RPS Chaos as a follow-up to my IS218 RPS-001 lab, working with Claude (an AI coding assistant) as a pair programmer. I set the direction, chose which features to build, playtested it, and decided what shipped. The AI wrote most of the code to my specs.
+
+AI-written code is a draft until it's checked, so each version had to clear the same gate:
+
+1. **Its own pull request.** v2, v3 and v4 each went through a PR (see [closed PRs](https://github.com/GaretJax6905/rps-chaos/pulls?q=is%3Apr+is%3Aclosed)).
+2. **`check.py` passing in CI.** That means formatting, linting, unit and integration tests, and real Chromium journeys, including two separate browsers playing an online match.
+3. **Real tests, minimal fakes.** Tests fix only the boss's move when they need a predictable result. The real rules, HTTP layer and sessions always run.
+4. **My own playtesting** before merging.
 
 ## Run it (WSL/Ubuntu, Python 3.12)
 
@@ -100,3 +131,9 @@ Tests fix only the boss's move (or shrink the shot clock) when they need a predi
 ## Code map
 
 `rules.py` rulesets · `brain.py` ORACLE (both phases) · `bosses.py` boss strategies and phases · `battle.py` run state, power-ups, Endless, score, shot clock (pure, no Flask) · `rooms.py` online rooms · `app.py` page + JSON API · `static/app.js` screens, animation, music, keyboard · `static/style.css` look · `static/sw.js` + `static/manifest.webmanifest` phone install · `render.yaml` deployment.
+
+## Author
+
+**Thomas Moylan** · IT student at NJIT, building toward front-end engineering · [@GaretJax6905](https://github.com/GaretJax6905)
+
+More projects: [Neon Swarm](https://github.com/GaretJax6905/neon-swarm) (Canvas arena shooter) · [Plaque Attack](https://github.com/GaretJax6905/plaque-attack) (educational dental game) · [MoodWave](https://github.com/GaretJax6905/moodwave) (Web Audio synthesizer and visualizer)
