@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>My runs · RPS Chaos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='account.css') }}">
+  </head>
+  <body>
+    <main class="account-page">
+      <h1 class="logo">RPS<span>Chaos</span></h1>
+      <h2>{{ user["display_name"] }}'s runs</h2>
+      <ul class="account-summary">
+        <li>Best score <strong id="best">{{ summary.best }}</strong></li>
+        <li>Furthest boss <strong id="furthest">{{ summary.furthest }}</strong> / 5</li>
+        <li>Runs played <strong id="played">{{ summary.played }}</strong></li>
+      </ul>
+      {% if runs %}
+      <table class="account-runs">
+        <thead><tr><th>Result</th><th>Mode</th><th>Bosses</th><th>Rounds won</th><th>Score</th></tr></thead>
+        <tbody>
+          {% for run in runs %}
+          <tr>
+            <td>{{ "Champion" if run.outcome == "champion" else "Lost" }}</td>
+            <td>{{ run.mode }}</td>
+            <td>{{ run.bosses_beaten }}</td>
+            <td>{{ run.rounds_won }}</td>
+            <td>{{ run.score }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="account-empty">No saved runs yet. Finish a Boss Ladder run and it will show up here.</p>
+      {% endif %}
+      <p><a href="{{ url_for('index') }}">Play the Boss Ladder</a></p>
+      <form method="post" action="{{ url_for('logout') }}">
+        <button type="submit">Sign out</button>
+      </form>
+    </main>
+  </body>
+</html>
