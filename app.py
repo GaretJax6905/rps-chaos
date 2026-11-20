@@ -7,9 +7,21 @@ memory (see rooms.py), so run a single server process.
 import os
 import random
 import time
+import uuid
 
-from flask import Flask, jsonify, render_template, request, send_from_directory, session
+from flask import (
+    Flask,
+    g,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
 
+import accounts
 import battle
 import bosses
 import brain
@@ -18,6 +30,7 @@ import rules
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.config["DATABASE"] = os.environ.get("DATABASE_PATH", "rps_chaos.db")
 
 RNG = random.Random()
 clock = time.time  # tests replace this to control the shot clock
@@ -64,6 +77,36 @@ def _view(state, healed=0):
         "clock": battle.clock_view(state, clock()),
         "healed": healed,
     }
+
+
+def _db():
+    """One database connection per request."""
+    if "db" not in g:
+        g.db = accounts.connect(app.config["DATABASE"])
+    return g.db
+
+
+@app.teardown_appcontext
+def _close_db(_exc):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+def _user():
+    """The signed-in user row, or None."""
+    user_id = session.get("user_id")
+    return accounts.get_user(_db(), user_id) if user_id else None
+
+
+def _record_if_finished(state):
+    """Save a finished Boss Ladder run for the signed-in player, once."""
+    if state["endless"] or state["status"] not in ("champion", "lost"):
+        return None
+    user_id = session.get("user_id")
+    if not user_id or "run_id" not in state:
+        return None
+    return accounts.save_run(_db(), user_id, state, battle.score(state))
 
 
 def _error(message, status=400):
@@ -131,6 +174,7 @@ def new_game():
     session["game"] = battle.new_game(
         mode, bool(body.get("shot_clock")), clock(), bool(body.get("endless"))
     )
+    session["game"]["run_id"] = uuid.uuid4().hex
     return jsonify({"state": _view(session["game"])})
 
 
@@ -168,7 +212,8 @@ def play():
     except ValueError as problem:
         return _error(str(problem))
     _save(state)
-    return jsonify({"round": result, "state": _view(state)})
+    saved = _record_if_finished(state)
+    return jsonify({"round": result, "state": _view(state), "saved": saved})
 
 
 @app.post("/api/powerup")
@@ -197,6 +242,92 @@ def peek():
         return _error(str(problem))
     _save(state)
     return jsonify({"move": move, "state": _view(state)})
+
+
+# ---------- accounts and saved runs ----------
+
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    """Create an account, then sign in."""
+    error = None
+    if request.method == "POST":
+        try:
+            user_id = accounts.register(
+                _db(),
+                request.form.get("email", ""),
+                request.form.get("password", ""),
+                request.form.get("display_name", ""),
+            )
+        except accounts.AccountError as problem:
+            error = str(problem)
+        else:
+            session.clear()
+            session["user_id"] = user_id
+            return redirect(url_for("dashboard"))
+    return render_template("auth.html", mode="register", error=error), (
+        400 if error else 200
+    )
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """Sign in with email and password."""
+    error = None
+    if request.method == "POST":
+        user = accounts.authenticate(
+            _db(), request.form.get("email", ""), request.form.get("password", "")
+        )
+        if user:
+            session.clear()
+            session["user_id"] = user["id"]
+            return redirect(url_for("dashboard"))
+        error = "Wrong email or password."
+    return render_template("auth.html", mode="login", error=error), (
+        401 if error else 200
+    )
+
+
+@app.post("/logout")
+def logout():
+    """Sign out and forget the current run."""
+    session.clear()
+    return redirect(url_for("login"))
+
+
+@app.get("/dashboard")
+def dashboard():
+    """Private dashboard: this player's saved runs."""
+    user = _user()
+    if not user:
+        return redirect(url_for("login"))
+    return render_template(
+        "dashboard.html",
+        user=user,
+        summary=accounts.summary(_db(), user["id"]),
+        runs=accounts.runs_for(_db(), user["id"]),
+    )
+
+
+@app.get("/api/results")
+def results():
+    """JSON of this player's saved runs; 401 when signed out."""
+    user = _user()
+    if not user:
+        return _error("Sign in to see your results.", 401)
+    return jsonify(
+        {
+            "summary": accounts.summary(_db(), user["id"]),
+            "runs": accounts.runs_for(_db(), user["id"]),
+        }
+    )
+
+
+@app.get("/api/me")
+def me():
+    """Who is signed in (for the game page's account link)."""
+    user = _user()
+    return jsonify({"user": {"name": user["display_name"]} if user else None})
 
 
 # ---------- online rooms ----------
